@@ -165,6 +165,8 @@ const cacheSave = () => {
 /* ============ Supabase layer ============ */
 
 const SB_CFG = { enabled: true, url: '', anonKey: '', useAuth: false, ...((typeof window.SUPABASE_CONFIG === 'object' && window.SUPABASE_CONFIG) || {}) };
+// ค่าจาก Project Settings -> API บางครั้งติด /rest/v1/ มาด้วย — ตัดออกเพราะ supabase-js ต่อให้เอง
+SB_CFG.url = (SB_CFG.url || '').replace(/\/?rest\/v1\/?$/, '');
 
 let sb = null;            // supabase client
 let sbOnline = false;     // เชื่อมต่อและโหลดข้อมูลสำเร็จ
@@ -186,16 +188,16 @@ const sToDb = () => ({ id: 'main', active_plan_id: state.activePlanId, plan_done
 const sFromDb = (r) => ({ activePlanId: r.active_plan_id || null, planDone: r.plan_done && typeof r.plan_done === 'object' ? r.plan_done : {} });
 
 function sbStatus(kind) {
-  const chip = $('#sync-status');
-  const text = $('#sync-text');
-  if (!chip) return;
-  chip.dataset.state = kind;
   const labels = {
     connecting: 'กำลังเชื่อมต่อ Supabase…',
     online: 'ซิงก์กับ Supabase แล้ว',
     local: 'โหมดเครื่อง (ออฟไลน์)',
   };
-  if (text) text.textContent = labels[kind] || '';
+  document.querySelectorAll('.sync-status').forEach((chip) => {
+    chip.dataset.state = kind;
+    const text = chip.querySelector('.sync-text');
+    if (text) text.textContent = labels[kind] || '';
+  });
   if (kind === 'online') toast('เชื่อมต่อ Supabase แล้ว ☁️', '✅');
   if (kind === 'local') toast('ยังไม่ได้ตั้งค่า Supabase — ใช้โหมดท้องถิ่น', '⚠️');
 }
@@ -423,7 +425,7 @@ function toast(msg, ico = '✅') {
 /* ---------------- Confetti ---------------- */
 
 function confetti() {
-  const colors = ['#ff7a2f', '#ff3d81', '#34d399', '#7dd3fc', '#facc15', '#c084fc'];
+  const colors = ['#2ee05e', '#22b8e6', '#34d399', '#7dd3fc', '#facc15', '#c084fc'];
   for (let i = 0; i < 46; i++) {
     const p = document.createElement('div');
     p.className = 'confetti';
@@ -683,8 +685,8 @@ function renderWeeklyChart() {
     <svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
       <defs>
         <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#ff7a2f"/>
-          <stop offset="100%" stop-color="#ff3d81"/>
+          <stop offset="0%" stop-color="#2ee05e"/>
+          <stop offset="100%" stop-color="#22b8e6"/>
         </linearGradient>
       </defs>
       <line class="chart-gridline" x1="${padL}" y1="${padT}" x2="${W - padR}" y2="${padT}"/>
@@ -758,12 +760,12 @@ function renderProgressChart() {
     <svg class="chart" viewBox="0 0 ${W} ${H}">
       <defs>
         <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="rgba(255,122,47,0.28)"/>
-          <stop offset="100%" stop-color="rgba(255,122,47,0)"/>
+          <stop offset="0%" stop-color="rgba(46,224,94,0.3)"/>
+          <stop offset="100%" stop-color="rgba(46,224,94,0)"/>
         </linearGradient>
         <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stop-color="#ff7a2f"/>
-          <stop offset="100%" stop-color="#ff3d81"/>
+          <stop offset="0%" stop-color="#2ee05e"/>
+          <stop offset="100%" stop-color="#22b8e6"/>
         </linearGradient>
       </defs>
       ${grid}
@@ -1201,8 +1203,9 @@ function navigate(page) {
   if (page === 'log') { renderLogCats(); renderExerciseGrid(); renderToday(); }
   if (page === 'plans') { renderPlanPicker(); renderPlanDetail(); }
   if (page === 'goals') { renderGoals(); }
-  if (page === 'history') { renderHistStats(); renderProgressChart(); renderHistory(); }
+  if (page === 'history') { renderHistStats(); renderHistFilter(); renderProgressChart(); renderHistory(); }
 
+  revealCurrentPage();
   window.scrollTo({ top: 0 });
 }
 
@@ -1216,6 +1219,7 @@ function renderAll() {
   renderGoals();
   renderDashPlan();
   renderHistStats();
+  renderHistFilter();
   renderProgressChart();
   renderHistory();
 }
@@ -1378,9 +1382,9 @@ function applyTheme(theme) {
 }
 
 function initTheme() {
-  let saved = 'light';
-  try { saved = localStorage.getItem(THEME_KEY) || 'light'; } catch { /* ignore */ }
-  applyTheme(saved === 'dark' ? 'dark' : 'light');
+  let saved = 'dark';
+  try { saved = localStorage.getItem(THEME_KEY) || 'dark'; } catch { /* ignore */ }
+  applyTheme(saved === 'light' ? 'light' : 'dark');
 }
 
 document.querySelectorAll('.theme-toggle').forEach((btn) => {
@@ -1391,8 +1395,79 @@ document.querySelectorAll('.theme-toggle').forEach((btn) => {
   });
 });
 
+/* ---------------- Motion & 3D ---------------- */
+
+let revealObserver = null;
+
+function initRevealObserver() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!('IntersectionObserver' in window)) return;
+  revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach((en) => {
+      if (en.isIntersecting) {
+        en.target.classList.add('in-view');
+        revealObserver.unobserve(en.target);
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -6% 0px' });
+}
+
+// เตรียมการ์ด/คอนเทนต์ในหน้าปัจจุบันให้แสดงแบบค่อยๆ โผล่ (stagger)
+function revealCurrentPage() {
+  if (!revealObserver) return;
+  const scope = document.querySelector('.page.active');
+  if (!scope) return;
+  const targets = scope.querySelectorAll(
+    '.card, .stat-card, .dash-hero, .banner-head, .plan-pick-card, .plan-day, .plan-hero, ' +
+    '.exercise-card, .goal-card, .filter-chips, .empty-state, .log-form-card, .goal-form-card, .dash-grid'
+  );
+  targets.forEach((el, i) => {
+    if (el.classList.contains('in-view')) return;
+    let delay = Math.min((i % 8) * 0.06, 0.4);
+    const ad = el.style && el.style.animationDelay;
+    if (ad) {
+      const sec = parseFloat(ad);
+      if (!isNaN(sec)) delay = Math.min(sec, 0.5);
+    }
+    el.style.setProperty('--rd', delay + 's');
+    el.classList.add('reveal');
+    revealObserver.observe(el);
+  });
+}
+
+// Hero 3D tilt — desktop + mouse เท่านั้น (GPU-safe: transform/opacity)
+function initHeroTilt() {
+  const hero = document.querySelector('.dash-hero');
+  if (!hero) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!window.matchMedia('(pointer: fine)').matches) return;
+  let raf = null;
+  hero.addEventListener('mousemove', (e) => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = null;
+      const r = hero.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width - 0.5;
+      const py = (e.clientY - r.top) / r.height - 0.5;
+      hero.style.setProperty('--ry', (px * 5).toFixed(2) + 'deg');
+      hero.style.setProperty('--rx', (-py * 5).toFixed(2) + 'deg');
+    });
+  });
+  hero.addEventListener('mouseleave', () => {
+    hero.style.setProperty('--ry', '0deg');
+    hero.style.setProperty('--rx', '0deg');
+  });
+}
+
+function initMotion() {
+  initRevealObserver();
+  initHeroTilt();
+}
+
 /* ---------------- Init ---------------- */
 
 initTheme();
+initMotion();
 renderAll();
+revealCurrentPage();
 sbInit();
