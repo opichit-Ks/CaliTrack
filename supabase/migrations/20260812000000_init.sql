@@ -1,11 +1,9 @@
 -- ============================================================
--- CaliTrack — Supabase Setup
+-- CaliTrack — Initial migration
 -- ============================================================
--- วิธีใช้:
---   1) เปิดหน้า https://supabase.com/dashboard -> เลือกโปรเจกต์
---   2) เมนู SQL Editor -> New query -> วางสคริปต์นี้ -> Run
---   3) ไปที่ Project Settings -> API -> คัดลอก Project URL และ anon key
---      ไปวางในไฟล์ supabase.config.js
+-- ไฟล์นี้ถูก GitHub Integration ของ Supabase นำไป apply อัตโนมัติ
+-- ทุกคำสั่งเป็น idempotent (รันซ้ำได้ ไม่ error) — ปลอดภัยแม้
+-- ตารางถูกสร้างไว้แล้วผ่าน Table Editor หรือ SQL Editor
 -- ============================================================
 
 -- ---------- ตารางบันทึกการฝึก ----------
@@ -55,6 +53,16 @@ begin
     alter publication supabase_realtime add table public.settings;
   end if;
 end $$;
+
+-- ---------- เปิดสิทธิ์การเข้าถึง (แก้ error 401 RLS) ----------
+-- ⚠️ ถ้าเห็น 401 "row-level security policy" ตอนบันทึก/โหลดข้อมูล
+--    แปลว่าตารางเปิด Row Level Security อยู่ (โดยเฉพาะตารางที่สร้างผ่าน
+--    Table Editor บน Dashboard จะเปิด RLS มาอัตโนมัติโดยไม่มี policy)
+--    ทำให้ anon key อ่าน/เขียนไม่ได้ — 3 คำสั่งด้านล่างปิด RLS ให้
+--    ทุกคนที่ใช้ anon key ใช้งานข้อมูลร่วมกันได้ทันที (รันซ้ำได้ ไม่ error)
+alter table public.workouts disable row level security;
+alter table public.goals    disable row level security;
+alter table public.settings disable row level security;
 
 -- ============================================================
 -- หมายเหตุ: โหมดทดลองนี้ปิด Row Level Security ไว้
