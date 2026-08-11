@@ -425,7 +425,7 @@ function toast(msg, ico = '✅') {
 /* ---------------- Confetti ---------------- */
 
 function confetti() {
-  const colors = ['#2ee05e', '#22b8e6', '#34d399', '#7dd3fc', '#facc15', '#c084fc'];
+  const colors = ['#4da6ff', '#22b8e6', '#4ade80', '#7dd3fc', '#facc15', '#c084fc'];
   for (let i = 0; i < 46; i++) {
     const p = document.createElement('div');
     p.className = 'confetti';
@@ -685,7 +685,7 @@ function renderWeeklyChart() {
     <svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
       <defs>
         <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#2ee05e"/>
+          <stop offset="0%" stop-color="#4da6ff"/>
           <stop offset="100%" stop-color="#22b8e6"/>
         </linearGradient>
       </defs>
@@ -760,11 +760,11 @@ function renderProgressChart() {
     <svg class="chart" viewBox="0 0 ${W} ${H}">
       <defs>
         <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="rgba(46,224,94,0.3)"/>
-          <stop offset="100%" stop-color="rgba(46,224,94,0)"/>
+          <stop offset="0%" stop-color="rgba(77,166,255,0.3)"/>
+          <stop offset="100%" stop-color="rgba(77,166,255,0)"/>
         </linearGradient>
         <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stop-color="#2ee05e"/>
+          <stop offset="0%" stop-color="#4da6ff"/>
           <stop offset="100%" stop-color="#22b8e6"/>
         </linearGradient>
       </defs>
@@ -795,8 +795,6 @@ function renderDashboard() {
   const totalVol = state.workouts.reduce((s, w) => s + volume(w), 0);
   const activeDays = new Set(state.workouts.map((w) => w.date)).size;
   const st = streak();
-  const heroStreak = $('#hero-streak');
-  if (heroStreak) heroStreak.textContent = fmtNum(st);
 
   $('#dash-stats').innerHTML = `
     <div class="stat-card">
@@ -1435,33 +1433,8 @@ function revealCurrentPage() {
   });
 }
 
-// Hero 3D tilt — desktop + mouse เท่านั้น (GPU-safe: transform/opacity)
-function initHeroTilt() {
-  const hero = document.querySelector('.dash-hero');
-  if (!hero) return;
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  if (!window.matchMedia('(pointer: fine)').matches) return;
-  let raf = null;
-  hero.addEventListener('mousemove', (e) => {
-    if (raf) return;
-    raf = requestAnimationFrame(() => {
-      raf = null;
-      const r = hero.getBoundingClientRect();
-      const px = (e.clientX - r.left) / r.width - 0.5;
-      const py = (e.clientY - r.top) / r.height - 0.5;
-      hero.style.setProperty('--ry', (px * 5).toFixed(2) + 'deg');
-      hero.style.setProperty('--rx', (-py * 5).toFixed(2) + 'deg');
-    });
-  });
-  hero.addEventListener('mouseleave', () => {
-    hero.style.setProperty('--ry', '0deg');
-    hero.style.setProperty('--rx', '0deg');
-  });
-}
-
 function initMotion() {
   initRevealObserver();
-  initHeroTilt();
 }
 
 /* ---------------- Init ---------------- */
