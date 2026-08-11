@@ -1,0 +1,13 @@
+# Freebuff app internal state (อย่าอัปโหลด)
+.freebuff/
+
+# Logs
+*.log
+server.log
+
+# Dependencies
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
