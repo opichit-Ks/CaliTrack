@@ -187,20 +187,29 @@ const gFromDb = (r) => ({ id: r.id, exerciseId: r.exercise_id, target: Number(r.
 const sToDb = () => ({ id: 'main', active_plan_id: state.activePlanId, plan_done: state.planDone || {} });
 const sFromDb = (r) => ({ activePlanId: r.active_plan_id || null, planDone: r.plan_done && typeof r.plan_done === 'object' ? r.plan_done : {} });
 
-function sbStatus(kind) {
+function sbStatus(kind, msg) {
   const labels = {
     connecting: 'กำลังเชื่อมต่อ Supabase…',
     online: 'ซิงก์กับ Supabase แล้ว',
     local: 'โหมดเครื่อง (ออฟไลน์)',
+    error: msg || 'ซิงก์ล้มเหลว',
   };
+  const prev = document.querySelector('.sync-status')?.dataset.state || '';
   document.querySelectorAll('.sync-status').forEach((chip) => {
     chip.dataset.state = kind;
     const text = chip.querySelector('.sync-text');
     if (text) text.textContent = labels[kind] || '';
   });
   if (kind === 'online') toast('เชื่อมต่อ Supabase แล้ว ☁️', '✅');
-  if (kind === 'local') toast('ยังไม่ได้ตั้งค่า Supabase — ใช้โหมดท้องถิ่น', '⚠️');
+  if (kind === 'local' && prev !== 'local') toast('ยังไม่ได้ตั้งค่า Supabase — ใช้โหมดท้องถิ่น', '⚠️');
+  if (kind === 'error' && prev !== 'error') toast(msg || 'ไม่สามารถซิงก์ได้', '⚠️');
 }
+
+// error 401 RLS (สิทธิ์) vs เน็ตหลุด/เซิร์ฟเวอร์ล่ม — แยกกันเพราะวิธีแก้คนละแบบ
+const isRlsError = (e) =>
+  !!(e && (e.code === '42501' || /row-level security|permission denied/i.test(`${e.message || ''} ${e.details || ''}`)));
+
+let sbLastError = null;
 
 async function sbInit() {
   if (!sbConfigured()) { sbStatus('local'); return; }
@@ -219,8 +228,13 @@ async function sbInit() {
   }
 
   sbStatus('connecting');
-  const ok = await sbLoad();
-  if (!ok) { sb = null; sbStatus('local'); return; }
+  const res = await sbLoad();
+  if (res === 'fail') { sb = null; sbStatus('local'); return; }
+  if (res === 'rls') {
+    // ต่อได้แต่สิทธิ์ไม่พอ (ยังไม่ได้รัน schema.sql) — เก็บ client ไว้รอ retry
+    sbSubscribe();
+    return;
+  }
   sbOnline = true;
   sbStatus('online');
   sbSubscribe();
@@ -245,8 +259,12 @@ async function sbLoad() {
     // โยกย้ายข้อมูลเก่าจาก localStorage ขึ้น Supabase เมื่อเซิร์ฟเวอร์ยังว่าง
     const hadLocal = state.workouts.length > 0 || state.goals.length > 0 || state.activePlanId || Object.keys(state.planDone).length > 0;
     if (hadLocal && serverWorkouts.length === 0 && serverGoals.length === 0 && !serverSettings) {
-      await sbPushAll();
-      return sbLoad();
+      const pushed = await sbPushAll();
+      if (pushed) return sbLoad(); // อัปโหลดสำเร็จ → โหลดซ้ำเอาข้อมูลจากเซิร์ฟเวอร์
+      // อัปโหลดไม่สำเร็จ → เก็บข้อมูลในเครื่องไว้ก่อน กันเซิร์ฟเวอร์ว่างเขียนทับ
+      cacheSave();
+      renderAll();
+      return isRlsError(sbLastError) ? 'rls' : 'fail';
     }
 
     // ใช้ข้อมูลจากเซิร์ฟเวอร์เป็นหลัก
@@ -258,27 +276,44 @@ async function sbLoad() {
     }
     cacheSave();
     renderAll();
-    return true;
+    return 'ok';
   } catch (e) {
     console.error('Supabase load failed:', e);
-    return false;
+    return 'fail';
   }
 }
 
 async function sbPushAll() {
-  if (!sb) return;
-  if (sbPushing) { sbPendingPush = true; return; }
+  if (!sb) return false;
+  if (sbPushing) { sbPendingPush = true; return false; }
   sbPushing = true;
   try {
     const workouts = state.workouts.map(wToDb);
     const goals = state.goals.map(gToDb);
-    if (workouts.length) await sb.from('workouts').upsert(workouts);
-    if (goals.length) await sb.from('goals').upsert(goals);
-    await sb.from('settings').upsert(sToDb());
+    // supabase-js ไม่ throw เมื่อ error — ต้องเช็ค .error เอง (401 RLS จะ resolve ปกติ)
+    if (workouts.length) {
+      const r = await sb.from('workouts').upsert(workouts);
+      if (r && r.error) throw r.error;
+    }
+    if (goals.length) {
+      const r = await sb.from('goals').upsert(goals);
+      if (r && r.error) throw r.error;
+    }
+    const s = await sb.from('settings').upsert(sToDb());
+    if (s && s.error) throw s.error;
+    sbLastError = null;
     if (!sbOnline) { sbOnline = true; sbStatus('online'); }
+    return true;
   } catch (e) {
     console.error('Supabase push failed:', e);
-    if (sbOnline) { sbOnline = false; sbStatus('local'); }
+    sbLastError = e;
+    if (sbOnline) sbOnline = false;
+    if (isRlsError(e)) {
+      sbStatus('error', 'สิทธิ์ไม่พอ (RLS) — รัน supabase/schema.sql ใน SQL Editor แล้วรีเฟรช');
+    } else {
+      sbStatus('local');
+    }
+    return false;
   } finally {
     sbPushing = false;
     if (sbPendingPush) { sbPendingPush = false; sbPushAll(); }
@@ -333,11 +368,22 @@ const save = () => {
   if (sb) sbPushAll();
 };
 
+// ลบแถวบน Supabase (upsert ไม่ลบของเก่า — ต้อง delete เอง)
+function sbDelete(table, id) {
+  if (!sb) return;
+  sb.from(table).delete().eq('id', id).then((r) => {
+    if (r && r.error) {
+      console.error('Supabase delete failed:', r.error);
+      if (isRlsError(r.error)) sbStatus('error', 'สิทธิ์ไม่พอ (RLS) — รัน supabase/schema.sql ใน SQL Editor แล้วรีเฟรช');
+    }
+  });
+}
+
 window.addEventListener('online', async () => {
   if (sb && !sbOnline) {
     await sbPushAll();
-    const ok = await sbLoad();
-    if (ok) { sbOnline = true; sbStatus('online'); }
+    const res = await sbLoad();
+    if (res === 'ok') { sbOnline = true; sbStatus('online'); }
   }
 });
 
@@ -1242,7 +1288,16 @@ function resetData() {
     Promise.all([
       sb.from('workouts').delete().neq('id', ''),
       sb.from('goals').delete().neq('id', ''),
-    ]).then(() => sb.from('settings').upsert(sToDb())).catch((e) => console.error('Supabase reset failed:', e));
+    ])
+      .then(async ([rw, rg]) => {
+        if ((rw && rw.error) || (rg && rg.error)) throw (rw && rw.error) || (rg && rg.error);
+        const rs = await sb.from('settings').upsert(sToDb());
+        if (rs && rs.error) throw rs.error;
+      })
+      .catch((e) => {
+        console.error('Supabase reset failed:', e);
+        if (isRlsError(e)) sbStatus('error', 'สิทธิ์ไม่พอ (RLS) — รัน supabase/schema.sql ใน SQL Editor แล้วรีเฟรช');
+      });
   }
   renderAll();
   toast('ล้างข้อมูลเรียบร้อย', '🧹');
@@ -1290,6 +1345,7 @@ document.addEventListener('click', (e) => {
     const id = delBtn.dataset.del;
     if (!confirm('ลบรายการนี้? ')) return;
     state.workouts = state.workouts.filter((w) => w.id !== id);
+    sbDelete('workouts', id);
     save();
     renderAll();
     toast('ลบรายการแล้ว', '🗑️');
@@ -1300,6 +1356,7 @@ document.addEventListener('click', (e) => {
   if (delGoal) {
     if (!confirm('ลบเป้าหมายนี้?')) return;
     state.goals = state.goals.filter((g) => g.id !== delGoal.dataset.delgoal);
+    sbDelete('goals', delGoal.dataset.delgoal);
     save();
     renderAll();
     toast('ลบเป้าหมายแล้ว', '🗑️');

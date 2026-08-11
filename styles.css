@@ -262,10 +262,10 @@ body::after {
   border-radius: 50%;
   background: var(--text-faint);
   flex-shrink: 0;
-}
-.sync-status[data-state="connecting"] .sync-dot { background: var(--warn); animation: syncPulse 1.2s ease-in-out infinite; box-shadow: 0 0 8px rgba(245, 158, 11, 0.5); }
-.sync-status[data-state="online"] .sync-dot { background: var(--success); box-shadow: 0 0 8px var(--success); }
-.sync-status[data-state="local"] .sync-dot { background: var(--text-faint); }
+}.sync-status[data-state="connecting"] .sync-dot { background: var(--warn); animation: syncPulse 1.2s ease-in-out infinite; box-shadow: 0 0 8px rgba(245, 158, 11, 0.5); }
+  .sync-status[data-state="online"] .sync-dot { background: var(--success); box-shadow: 0 0 8px var(--success); }
+  .sync-status[data-state="local"] .sync-dot { background: var(--text-faint); }
+  .sync-status[data-state="error"] .sync-dot { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
 
 @keyframes syncPulse {
   0%, 100% { opacity: 1; }
