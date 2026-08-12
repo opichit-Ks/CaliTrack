@@ -1,0 +1,24 @@
+{
+  "name": "CaliTrack — บันทึกการฝึกแคลิสเทนิกส์",
+  "short_name": "CaliTrack",
+  "description": "เว็บแอปบันทึกการออกกำลังกายแบบ Calisthenics ตั้งเป้าหมาย และติดตามความก้าวหน้า",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f7fc",
+  "theme_color": "#f5f7fc",
+  "icons": [
+    {
+      "src": "images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "images/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}
