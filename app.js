@@ -1421,35 +1421,6 @@ $('#btn-open-goal-form').addEventListener('click', () => {
 $('#btn-cancel-goal').addEventListener('click', () => { $('#goal-form-card').hidden = true; });
 $('#btn-save-goal').addEventListener('click', saveGoal);
 
-/* ---------------- Theme ---------------- */
-
-const THEME_KEY = 'calitrack.theme';
-
-function applyTheme(theme) {
-  document.documentElement.dataset.theme = theme;
-  try { localStorage.setItem(THEME_KEY, theme); } catch { /* ignore */ }
-  const dark = theme === 'dark';
-  document.querySelectorAll('.theme-toggle').forEach((btn) => {
-    btn.setAttribute('aria-label', dark ? 'สลับเป็นโหมดสว่าง' : 'สลับเป็นโหมดมืด');
-    const label = btn.querySelector('.theme-label');
-    if (label) label.textContent = dark ? 'โหมดสว่าง' : 'โหมดมืด';
-  });
-}
-
-function initTheme() {
-  let saved = 'dark';
-  try { saved = localStorage.getItem(THEME_KEY) || 'dark'; } catch { /* ignore */ }
-  applyTheme(saved === 'light' ? 'light' : 'dark');
-}
-
-document.querySelectorAll('.theme-toggle').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-    applyTheme(next);
-    toast(next === 'dark' ? 'สลับเป็นโหมดมืดแล้ว 🌙' : 'สลับเป็นโหมดสว่างแล้ว ☀️', '🎨');
-  });
-});
-
 /* ---------------- Motion & 3D ---------------- */
 
 let revealObserver = null;
@@ -1496,7 +1467,7 @@ function initMotion() {
 
 /* ---------------- Init ---------------- */
 
-initTheme();
+document.documentElement.dataset.theme = 'light';
 initMotion();
 renderAll();
 revealCurrentPage();
