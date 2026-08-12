@@ -1649,6 +1649,17 @@ function updateAuthUI() {
   if (!body) return;
   if (signedIn) {
     const initial = escapeHtml((authUser.name || 'U').trim().charAt(0).toUpperCase());
+    const guest = loadGuestState();
+    const guestCount = guest.workouts.length + guest.goals.length + (guest.activePlanId ? 1 : 0) + (Object.keys(guest.planDone || {}).length ? 1 : 0);
+    const migrateCard = guestCount > 0
+      ? `<div class="auth-migrate">
+          <div class="auth-migrate-info">
+            <strong>มีข้อมูลผู้เยี่ยมชมในเครื่องนี้</strong>
+            <span>บันทึกการฝึก ${guest.workouts.length} รายการ · เป้าหมาย ${guest.goals.length} รายการ</span>
+          </div>
+          <button class="btn-migrate" id="btn-auth-migrate">ย้ายเข้าบัญชีนี้</button>
+        </div>`
+      : '';
     body.innerHTML = `
       <div class="auth-profile">
         <div class="auth-avatar">${authUser.avatar ? `<img src="${escapeHtml(authUser.avatar)}" alt="" referrerpolicy="no-referrer" />` : initial}</div>
@@ -1657,10 +1668,16 @@ function updateAuthUI() {
           <span>${escapeHtml(authUser.email || '')}</span>
         </div>
       </div>
+      ${migrateCard}
       <p class="auth-note">ข้อมูลการฝึกของคุณซิงก์กับบัญชีนี้ผ่าน Supabase — ใช้ข้ามเครื่องได้<br/>ออกจากระบบแล้วจะกลับเป็นโหมดผู้เยี่ยมชม (ข้อมูลอยู่ในเครื่องนี้)</p>
       <button class="btn-google" id="btn-auth-signout">ออกจากระบบ</button>
+      <button class="uid-copy" id="btn-copy-uid" title="ใช้สำหรับรัน SQL ย้ายข้อมูลเก่าจากเซิร์ฟเวอร์ (รอบก่อนล็อกอิน)">คัดลอก User ID (สำหรับย้ายข้อมูลเก่า) ⧉</button>
     `;
     $('#btn-auth-signout').addEventListener('click', signOutAccount);
+    if (guestCount > 0) $('#btn-auth-migrate').addEventListener('click', migrateGuestToAccount);
+    $('#btn-copy-uid').addEventListener('click', () => {
+      navigator.clipboard.writeText(authUser.id).then(() => toast('คัดลอก User ID แล้ว', '📋'));
+    });
   } else {
     body.innerHTML = `
       <p class="auth-title">เข้าสู่ระบบด้วย Google</p>
@@ -1670,6 +1687,52 @@ function updateAuthUI() {
     `;
     $('#btn-auth-login').addEventListener('click', loginWithGoogle);
   }
+}
+
+// อ่านข้อมูลจาก key ของผู้เยี่ยมชม (ไม่เปลี่ยน state)
+function loadGuestState() {
+  try {
+    const raw = localStorage.getItem(GUEST_KEY);
+    const data = raw ? JSON.parse(raw) : {};
+    return {
+      workouts: Array.isArray(data.workouts) ? data.workouts : [],
+      goals: Array.isArray(data.goals) ? data.goals : [],
+      activePlanId: typeof data.activePlanId === 'string' ? data.activePlanId : null,
+      planDone: data.planDone && typeof data.planDone === 'object' && !Array.isArray(data.planDone) ? data.planDone : {},
+    };
+  } catch { return { workouts: [], goals: [], activePlanId: null, planDone: {} }; }
+}
+
+// ย้ายข้อมูลผู้เยี่ยมชมเข้าไปในบัญชีที่ล็อกอินอยู่ แล้วล้างข้อมูล guest ทิ้ง
+async function migrateGuestToAccount() {
+  const guest = loadGuestState();
+  const nW = guest.workouts.length, nG = guest.goals.length;
+  const hasPlan = !!guest.activePlanId || Object.keys(guest.planDone || {}).length > 0;
+  if (!nW && !nG && !hasPlan) { toast('ไม่มีข้อมูลผู้เยี่ยมชมในเครื่องนี้', 'ℹ️'); return; }
+
+  // merge แบบไม่ซ้ำ (ใช้ id เป็นตัวตรวจ)
+  let addedW = 0, dupW = 0, addedG = 0, dupG = 0;
+  const wIds = new Set(state.workouts.map((w) => w.id));
+  for (const w of guest.workouts) {
+    if (wIds.has(w.id)) { dupW++; continue; }
+    state.workouts.push(w); wIds.add(w.id); addedW++;
+  }
+  const gIds = new Set(state.goals.map((g) => g.id));
+  for (const g of guest.goals) {
+    if (gIds.has(g.id)) { dupG++; continue; }
+    state.goals.push(g); gIds.add(g.id); addedG++;
+  }
+  if (guest.activePlanId && !state.activePlanId) state.activePlanId = guest.activePlanId;
+  const pd = guest.planDone || {};
+  for (const k of Object.keys(pd)) if (!state.planDone[k]) state.planDone[k] = pd[k];
+
+  await sbPushAll();            // อัปโหลดขึ้นบัญชี
+  localStorage.removeItem(GUEST_KEY); // เคลียร์ข้อมูลเดิมในเครื่อง
+  save();
+  renderAll();
+  updateAuthUI();
+  const dup = dupW + dupG;
+  toast(`ย้ายข้อมูลสำเร็จ: เพิ่ม ${addedW + addedG} รายการ${dup ? `, มีอยู่แล้ว ${dup} รายการ` : ''}`, '✅');
 }
 
 function openAuthModal() {
