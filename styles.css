@@ -302,9 +302,9 @@ body::after {
   background: linear-gradient(180deg, rgba(77, 166, 255, 0.14), transparent 45%);
   pointer-events: none;
 }
-.banner-plans { background-image: url("images/forest-gym.jpg"); margin-top: -20px; }
-.banner-log { background-image: url("images/pullup-bar.jpg"); margin-top: -20px; }
-.banner-goals { background-image: url("images/woman-calisthenics.jpg"); margin-top: -20px; }
+.banner-plans { margin-top: -20px; }
+.banner-log { margin-top: -20px; }
+.banner-goals { margin-top: -20px; }
 
 .banner-head .page-eyebrow { background: rgba(4, 8, 16, 0.5); border-color: rgba(255, 255, 255, 0.14); color: #7deba4; }
 .banner-head .page-title { color: #ffffff; }
@@ -473,12 +473,11 @@ body::after {
   background-repeat: no-repeat;
   background-size: 125% auto;
   filter: drop-shadow(0 24px 60px rgba(2, 8, 20, 0.18));
+  /* Lazy-loaded via JS — fade in once the image is ready */
+  opacity: 0;
+  transition: opacity 0.6s ease;
 }
-.dash-bg { background-image: url('images/bg-model.png'); }
-.log-bg { background-image: url('images/bg-woman.png'); }
-.goals-bg { background-image: url('images/bg-goals.png'); }
-.plans-bg { background-image: url('images/bg-plans.png'); }
-.history-bg { background-image: url('images/bg-history-cut.png'); }
+.page-bg.bg-ready { opacity: 1; }
 
 .dash-hero {
   position: relative;

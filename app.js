@@ -1240,6 +1240,8 @@ function navigate(page) {
   document.querySelectorAll('.page').forEach((p) => p.classList.remove('active'));
   const target = $('#page-' + page);
   if (target) target.classList.add('active');
+  // Lazy-load background images ของหน้าที่เพิ่งเปิด
+  if (target) target.querySelectorAll('[data-bg]').forEach(loadLazyBg);
 
   document.querySelectorAll('.nav-item, .m-nav-item').forEach((n) => n.classList.toggle('active', n.dataset.nav === page));
 
@@ -1465,10 +1467,46 @@ function initMotion() {
   initRevealObserver();
 }
 
+/* ---------------- Lazy background images (WebP) ---------------- */
+
+// โหลด background-image เฉพาะเมื่อใกล้ viewport หรือเมื่อเปิดหน้านั้น
+const lazyBgObserver = ('IntersectionObserver' in window)
+  ? new IntersectionObserver((entries) => {
+      entries.forEach((en) => {
+        if (en.isIntersecting) { loadLazyBg(en.target); lazyBgObserver.unobserve(en.target); }
+      });
+    }, { rootMargin: '250px 0px' })
+  : null;
+
+function loadLazyBg(el) {
+  if (!el || el.dataset.bgLoaded) return;
+  const url = el.dataset.bg;
+  if (!url) return;
+  el.dataset.bgLoaded = '1';
+  const img = new Image();
+  img.decoding = 'async';
+  img.onload = () => {
+    el.style.backgroundImage = "url('" + url + "')";
+    el.classList.add('bg-ready'); // ค่อย ๆ จางเข้ามา (CSS transition)
+  };
+  img.onerror = () => { /* เงียบ ๆ — คอนเทนต์ยังอ่านได้โดยไม่มี bg */ };
+  img.src = url;
+}
+
+function initLazyBg() {
+  document.querySelectorAll('[data-bg]').forEach((el) => {
+    // หน้าแรก (active) โหลดทันที — เป็นภาพหลักที่ต้องเห็นก่อน
+    if (el.closest('.page.active')) { loadLazyBg(el); return; }
+    if (lazyBgObserver) lazyBgObserver.observe(el);
+    else loadLazyBg(el);
+  });
+}
+
 /* ---------------- Init ---------------- */
 
 document.documentElement.dataset.theme = 'light';
 initMotion();
 renderAll();
 revealCurrentPage();
+initLazyBg();
 sbInit();
