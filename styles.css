@@ -1458,3 +1458,89 @@ select.text-input option { background: var(--card-solid); color: var(--text); }
   }
   .reveal { opacity: 1; transform: none; filter: none; }
 }
+
+/* ============================================================
+   Preloader — หน้าโหลด (เว็บ + iOS PWA splash ต่อเนื่อง)
+   ============================================================ */
+
+#preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #00050d;
+  overflow: hidden;
+  transition: opacity 0.6s cubic-bezier(0.32, 0.72, 0, 1), visibility 0.6s;
+}
+
+#preloader .pre-img {
+  position: absolute;
+  inset: 0;
+  background: url('images/preload.webp') center / cover no-repeat;
+}
+
+/* veil: ไล่เฉดบน-ล่าง ให้โลโก้ + แถบโหลดอ่านชัด */
+#preloader .pre-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 5, 13, 0.62) 0%,
+    rgba(0, 5, 13, 0.12) 30%,
+    rgba(0, 5, 13, 0.12) 60%,
+    rgba(0, 5, 13, 0.88) 100%
+  );
+}
+
+/* แถบโหลด + เปอร์เซ็นต์ ตรงส่วนล่างสุดของภาพ */
+#preloader .pre-bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 24px 28px calc(22px + env(safe-area-inset-bottom, 0px));
+}
+
+#preloader .pre-bar {
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+
+#preloader .pre-bar-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2563eb, #0ea5e9, #06b6d4);
+  box-shadow: 0 0 14px rgba(14, 165, 233, 0.65);
+  transition: width 0.15s linear;
+}
+
+#preloader .pre-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 11px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+#preloader .pre-pct {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 13px;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+#preloader.pre-hide {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #preloader .pre-bar-fill { transition: none; }
+}

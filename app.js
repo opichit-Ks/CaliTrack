@@ -1502,9 +1502,46 @@ function initLazyBg() {
   });
 }
 
+/* ---------------- Preloader ---------------- */
+function initPreloader() {
+  const el = document.getElementById('preloader');
+  if (!el) return;
+  const bar = el.querySelector('.pre-bar-fill');
+  const pct = el.querySelector('.pre-pct');
+  const start = Date.now();
+  let finished = false;
+  let p = 0;
+  // ไล่ progress ขึ้นถึง ~90% ระหว่างรอโหลดจริง
+  const tick = setInterval(() => {
+    if (finished) return;
+    p = Math.min(p + Math.max(1, (90 - p) * 0.09), 90);
+    bar.style.width = p + '%';
+    pct.textContent = Math.floor(p) + '%';
+    if (p >= 90) clearInterval(tick);
+  }, 110);
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    clearInterval(tick);
+    // แสดงอย่างน้อย ~1.1s เพื่อไม่ให้วาบเร็วเกิน
+    const wait = Math.max(0, 1100 - (Date.now() - start));
+    setTimeout(() => {
+      bar.style.width = '100%';
+      pct.textContent = '100%';
+      setTimeout(() => {
+        el.classList.add('pre-hide');
+        setTimeout(() => el.remove(), 650);
+      }, 260);
+    }, wait);
+  };
+  if (document.readyState === 'complete') finish();
+  else window.addEventListener('load', finish);
+}
+
 /* ---------------- Init ---------------- */
 
 document.documentElement.dataset.theme = 'light';
+initPreloader();
 initMotion();
 renderAll();
 revealCurrentPage();
