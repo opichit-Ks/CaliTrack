@@ -54,6 +54,12 @@
         <span class="sync-dot"></span>
         <span class="sync-text" id="sync-text">—</span>
       </div>
+      <button class="user-chip" id="btn-account" aria-label="บัญชีผู้ใช้">
+        <span class="user-avatar" id="user-avatar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+        </span>
+        <span class="user-name" id="user-name">เข้าสู่ระบบ</span>
+      </button>
     </header>
 
     <!-- ===== Main content ===== -->
@@ -262,6 +268,12 @@
             <h3>ข้อมูลแอป</h3>
           </div>
           <div class="settings-row">
+            <button class="ghost-btn" id="btn-account-settings">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+              <span id="settings-account-label">เข้าสู่ระบบด้วย Google</span>
+            </button>
+          </div>
+          <div class="settings-row">
             <button class="ghost-btn" id="btn-export">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
               ส่งออกข้อมูล (Backup JSON)
@@ -318,6 +330,19 @@
         <span class="video-hint">คลิปสอนท่าจากผู้ฝึกมืออาชีพบน YouTube — ดูท่าทางและเทคนิคที่ถูกต้อง</span>
         <a class="text-btn" id="video-link" href="#" target="_blank" rel="noopener">เปิดใน YouTube ↗</a>
       </div>
+    </div>
+  </div>
+
+  <!-- ===== Auth modal (เข้าสู่ระบบ / บัญชี) ===== -->
+  <div class="modal-overlay" id="auth-modal" hidden>
+    <div class="modal modal-narrow" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <h3>บัญชี</h3>
+        <button class="icon-btn" id="btn-auth-close" title="ปิด">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div class="auth-body" id="auth-body"></div>
     </div>
   </div>
 

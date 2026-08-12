@@ -140,10 +140,27 @@ const planById = (id) => PLANS.find((p) => p.id === id) || null;
 /* ---------------- Storage: Supabase (หลัก) + localStorage (cache/offline) ---------------- */
 
 const STORE_KEY = 'calitrack.v1';
+const GUEST_KEY = 'calitrack.v1.guest';
+
+// 🔐 key ข้อมูลตามสถานะ: ผู้เยี่ยมชม = calitrack.v1.guest,
+//    ล็อกอินด้วย Google = calitrack.v1.<uid ของ Supabase> — ข้อมูลแยกคนละที่
+let authUser = null; // เฉพาะข้อมูลสำหรับแสดงผล (ชื่อ/อีเมล/รูป) — ไม่เคย log
+const isGuest = () => !authUser;
+const storageKey = () => (authUser ? `${STORE_KEY}.${authUser.id}` : GUEST_KEY);
+
+// โยกข้อมูลเวอร์ชันเก่า (calitrack.v1) ไปยัง key ของ guest ครั้งแรกที่รัน
+function migrateLegacyKey() {
+  try {
+    if (!localStorage.getItem(GUEST_KEY) && localStorage.getItem(STORE_KEY)) {
+      localStorage.setItem(GUEST_KEY, localStorage.getItem(STORE_KEY));
+      localStorage.removeItem(STORE_KEY);
+    }
+  } catch { /* ignore */ }
+}
 
 function loadState() {
   try {
-    const raw = localStorage.getItem(STORE_KEY);
+    const raw = localStorage.getItem(isGuest() ? GUEST_KEY : storageKey());
     const data = raw ? JSON.parse(raw) : {};
     return {
       workouts: Array.isArray(data.workouts) ? data.workouts : [],
@@ -159,7 +176,7 @@ function loadState() {
 let state = loadState();
 
 const cacheSave = () => {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch { /* ignore */ }
+  try { localStorage.setItem(storageKey(), JSON.stringify(state)); } catch { /* ignore */ }
 };
 
 /* ============ Supabase layer ============ */
@@ -184,7 +201,7 @@ const wFromDb = (r) => ({ id: r.id, exerciseId: r.exercise_id, sets: Number(r.se
 const gToDb = (g) => ({ id: g.id, exercise_id: g.exerciseId, target: g.target, deadline: g.deadline, completed: !!g.completed, completed_at: g.completedAt || null, created_at: g.createdAt });
 const gFromDb = (r) => ({ id: r.id, exerciseId: r.exercise_id, target: Number(r.target) || 0, deadline: r.deadline, completed: !!r.completed, completedAt: r.completed_at || null, createdAt: r.created_at });
 
-const sToDb = () => ({ id: 'main', active_plan_id: state.activePlanId, plan_done: state.planDone || {} });
+const sToDb = () => ({ user_id: authUser ? authUser.id : null, active_plan_id: state.activePlanId, plan_done: state.planDone || {} });
 const sFromDb = (r) => ({ activePlanId: r.active_plan_id || null, planDone: r.plan_done && typeof r.plan_done === 'object' ? r.plan_done : {} });
 
 function sbStatus(kind, msg) {
@@ -192,6 +209,7 @@ function sbStatus(kind, msg) {
     connecting: 'กำลังเชื่อมต่อ Supabase…',
     online: 'ซิงก์กับ Supabase แล้ว',
     local: 'โหมดเครื่อง (ออฟไลน์)',
+    guest: 'โหมดผู้เยี่ยมชม — ข้อมูลในเครื่องนี้',
     error: msg || 'ซิงก์ล้มเหลว',
   };
   const prev = document.querySelector('.sync-status')?.dataset.state || '';
@@ -211,15 +229,19 @@ const isRlsError = (e) =>
 
 let sbLastError = null;
 
-async function sbInit() {
+/* ============ Auth: Google (Supabase) + Guest Mode ============ */
+// 🔐 ความปลอดภัย:
+//   - Google OAuth Client Secret อยู่ที่ Supabase Dashboard เท่านั้น
+//     (server-side) — client เห็นแค่ anon key (public by design)
+//   - ไม่เก็บ PII ในฐานข้อมูล — โชว์ชื่อ/อีเมล/รูปจาก session โดยตรง
+//   - ไม่ log token/อีเมล/ข้อมูลผู้ใช้ ลง console
+
+async function initAuth() {
+  migrateLegacyKey();
   if (!sbConfigured()) { sbStatus('local'); return; }
   if (typeof window.supabase === 'undefined' || !window.supabase.createClient) { sbStatus('local'); return; }
   try {
     sb = window.supabase.createClient(SB_CFG.url, SB_CFG.anonKey);
-    if (SB_CFG.useAuth) {
-      const { error } = await sb.auth.signInAnonymously();
-      if (error) console.warn('Anonymous sign-in:', error.message);
-    }
   } catch (e) {
     console.error('Supabase init failed:', e);
     sb = null;
@@ -227,17 +249,76 @@ async function sbInit() {
     return;
   }
 
+  // session ค้างอยู่ (ล็อกอิน Google ครั้งก่อน) — ตรวจเฉพาะในเครื่อง
+  let session = null;
+  try { session = (await sb.auth.getSession()).data.session; } catch { session = null; }
+
+  if (session && session.user) {
+    applyAuthUser(session.user);
+    await syncFromSupabase();
+  } else {
+    state = loadState();
+    sbStatus('guest');
+    updateAuthUI();
+  }
+
+  // ฟังการเปลี่ยนสถานะ auth (ล็อกอิน/ออกจากระบบ)
+  sb.auth.onAuthStateChange((event, s) => {
+    if (event === 'SIGNED_IN' && s && s.user) {
+      applyAuthUser(s.user);
+      updateAuthUI();
+      syncFromSupabase();
+    } else if (event === 'SIGNED_OUT') {
+      authUser = null;
+      state = loadState();
+      cacheSave();
+      renderAll();
+      sbStatus('guest');
+      updateAuthUI();
+    }
+  });
+}
+
+// ตั้งค่าข้อมูลผู้ใช้สำหรับแสดงผลเท่านั้น (ไม่ log ค่าเหล่านี้)
+function applyAuthUser(u) {
+  const md = (u && u.user_metadata) || {};
+  authUser = {
+    id: u.id,
+    email: u.email || '',
+    name: md.full_name || md.name || u.email || '',
+    avatar: md.avatar_url || md.picture || '',
+  };
+}
+
+// ดึงข้อมูลจาก Supabase (logic เดิม: โยกข้อมูล guest ขึ้นบัญชีเมื่อยังว่าง)
+async function syncFromSupabase() {
   sbStatus('connecting');
   const res = await sbLoad();
   if (res === 'fail') { sb = null; sbStatus('local'); return; }
   if (res === 'rls') {
-    // ต่อได้แต่สิทธิ์ไม่พอ (ยังไม่ได้รัน schema.sql) — เก็บ client ไว้รอ retry
+    // ต่อได้แต่สิทธิ์ไม่พอ (ยังไม่ได้รัน migration) — เก็บ client ไว้รอ retry
     sbSubscribe();
     return;
   }
   sbOnline = true;
   sbStatus('online');
   sbSubscribe();
+  updateAuthUI();
+}
+
+async function loginWithGoogle() {
+  if (!sb) { toast('ยังไม่ได้ตั้งค่า Supabase', '⚠️'); return; }
+  closeAuthModal();
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin + window.location.pathname },
+  });
+  if (error) toast('เข้าสู่ระบบไม่สำเร็จ — ลองอีกครั้ง', '⚠️');
+}
+
+async function signOutAccount() {
+  await sb.auth.signOut();
+  closeAuthModal();
 }
 
 async function sbLoad() {
@@ -246,7 +327,8 @@ async function sbLoad() {
     const [w, g, s] = await Promise.all([
       sb.from('workouts').select('*'),
       sb.from('goals').select('*'),
-      sb.from('settings').select('*').eq('id', 'main').maybeSingle(),
+      // settings: RLS กรองให้เห็นเฉพาะแถวของตัวเอง (1 แถวต่อผู้ใช้)
+      sb.from('settings').select('*').maybeSingle(),
     ]);
     if (w.error) throw w.error;
     if (g.error) throw g.error;
@@ -363,14 +445,15 @@ function sbSubscribe() {
 }
 
 // บันทึก: เขียนลง cache (localStorage) ทันที + ซิงก์ขึ้น Supabase แบบไม่บล็อก UI
+// Guest = เขียน localStorage อย่างเดียว (ไม่แตะ Supabase)
 const save = () => {
   cacheSave();
-  if (sb) sbPushAll();
+  if (sb && authUser) sbPushAll();
 };
 
 // ลบแถวบน Supabase (upsert ไม่ลบของเก่า — ต้อง delete เอง)
 function sbDelete(table, id) {
-  if (!sb) return;
+  if (!sb || !authUser) return;
   sb.from(table).delete().eq('id', id).then((r) => {
     if (r && r.error) {
       console.error('Supabase delete failed:', r.error);
@@ -380,7 +463,7 @@ function sbDelete(table, id) {
 }
 
 window.addEventListener('online', async () => {
-  if (sb && !sbOnline) {
+  if (sb && authUser && !sbOnline) {
     await sbPushAll();
     const res = await sbLoad();
     if (res === 'ok') { sbOnline = true; sbStatus('online'); }
@@ -1409,7 +1492,13 @@ $('#video-modal').addEventListener('click', (e) => {
   if (e.target === $('#video-modal')) closeVideoModal();
   if (e.target.closest('.video-placeholder')) loadVideo();
 });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeVideoModal(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeVideoModal(); closeAuthModal(); } });
+$('#btn-account').addEventListener('click', openAuthModal);
+$('#btn-account-settings').addEventListener('click', openAuthModal);
+$('#btn-auth-close').addEventListener('click', closeAuthModal);
+$('#auth-modal').addEventListener('click', (e) => {
+  if (e.target === $('#auth-modal')) closeAuthModal();
+});
 $('#btn-export').addEventListener('click', exportData);
 $('#btn-reset').addEventListener('click', resetData);
 $('#btn-open-goal-form').addEventListener('click', () => {
@@ -1538,6 +1627,63 @@ function initPreloader() {
   else window.addEventListener('load', finish);
 }
 
+/* ---------------- Auth UI (user chip + modal) ---------------- */
+
+const googleIcon = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A11 11 0 0 0 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>`;
+
+const userIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>`;
+
+function updateAuthUI() {
+  const chip = $('#user-name');
+  const avatar = $('#user-avatar');
+  const body = $('#auth-body');
+  const settingsLabel = $('#settings-account-label');
+  const signedIn = !!authUser;
+  if (chip) chip.textContent = signedIn ? (authUser.name || 'บัญชี') : 'เข้าสู่ระบบ';
+  if (settingsLabel) settingsLabel.textContent = signedIn ? 'บัญชี: ' + (authUser.email || authUser.name || '—') : 'เข้าสู่ระบบด้วย Google';
+  if (avatar) {
+    avatar.innerHTML = signedIn && authUser.avatar
+      ? `<img src="${escapeHtml(authUser.avatar)}" alt="" referrerpolicy="no-referrer" loading="lazy" />`
+      : userIcon;
+  }
+  if (!body) return;
+  if (signedIn) {
+    const initial = escapeHtml((authUser.name || 'U').trim().charAt(0).toUpperCase());
+    body.innerHTML = `
+      <div class="auth-profile">
+        <div class="auth-avatar">${authUser.avatar ? `<img src="${escapeHtml(authUser.avatar)}" alt="" referrerpolicy="no-referrer" />` : initial}</div>
+        <div class="auth-info">
+          <strong>${escapeHtml(authUser.name || 'ผู้ใช้')}</strong>
+          <span>${escapeHtml(authUser.email || '')}</span>
+        </div>
+      </div>
+      <p class="auth-note">ข้อมูลการฝึกของคุณซิงก์กับบัญชีนี้ผ่าน Supabase — ใช้ข้ามเครื่องได้<br/>ออกจากระบบแล้วจะกลับเป็นโหมดผู้เยี่ยมชม (ข้อมูลอยู่ในเครื่องนี้)</p>
+      <button class="btn-google" id="btn-auth-signout">ออกจากระบบ</button>
+    `;
+    $('#btn-auth-signout').addEventListener('click', signOutAccount);
+  } else {
+    body.innerHTML = `
+      <p class="auth-title">เข้าสู่ระบบด้วย Google</p>
+      <p class="auth-note">ล็อกอินเพื่อซิงก์ข้อมูลการฝึกข้ามเครื่อง<br/>หรือใช้โหมดผู้เยี่ยมชมต่อ — ข้อมูลอยู่ในเครื่องนี้เท่านั้น</p>
+      <button class="btn-google" id="btn-auth-login">${googleIcon}<span>เข้าสู่ระบบด้วย Google</span></button>
+      <p class="auth-hint">🔒 จะเปิดหน้า Google ให้ยืนยันตัวตน — ชื่อ/อีเมล/รูป ใช้แสดงในแอปเท่านั้น<br/>ข้อมูลส่วนตัวไม่ถูกส่งไปที่อื่น และไม่มีการเก็บความลับในโค้ด</p>
+    `;
+    $('#btn-auth-login').addEventListener('click', loginWithGoogle);
+  }
+}
+
+function openAuthModal() {
+  const modal = $('#auth-modal');
+  if (!modal) return;
+  modal.hidden = false;
+  updateAuthUI();
+}
+
+function closeAuthModal() {
+  const modal = $('#auth-modal');
+  if (modal) modal.hidden = true;
+}
+
 /* ---------------- Init ---------------- */
 
 document.documentElement.dataset.theme = 'light';
@@ -1546,4 +1692,4 @@ initMotion();
 renderAll();
 revealCurrentPage();
 initLazyBg();
-sbInit();
+initAuth();
