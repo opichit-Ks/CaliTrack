@@ -743,7 +743,7 @@ function renderWeeklyChart() {
 function progressData(exId) {
   const rows = {};
   state.workouts
-    .filter((w) => w.exerciseId === exId)
+    .filter((w) => exId === 'all' || w.exerciseId === exId)
     .sort((a, b) => (a.date < b.date ? -1 : 1))
     .forEach((w) => { rows[w.date] = (rows[w.date] || 0) + volume(w); });
 

@@ -60,6 +60,11 @@
   --chart-grid: rgba(255, 255, 255, 0.07);
   --hero-grad: radial-gradient(120% 140% at 0% 0%, rgba(77, 166, 255, 0.16), transparent 55%), radial-gradient(120% 140% at 100% 100%, rgba(34, 184, 230, 0.12), transparent 55%), linear-gradient(160deg, rgba(17, 26, 46, 0.9), rgba(9, 14, 26, 0.95));
 
+  /* Aurora chart colors */
+  --chart-grad-1: #4da6ff;
+  --chart-grad-2: #22b8e6;
+  --chart-area: rgba(77, 166, 255, 0.34);
+
   --radius: 22px;
   --radius-sm: 14px;
   --radius-pill: 999px;
@@ -71,8 +76,8 @@
   color-scheme: light;
   --scheme: light;
 
-  --bg: #eef1f8;
-  --bg-soft: #e6eaf4;
+  --bg: #f5f7fc;
+  --bg-soft: #eef2fa;
   --card: rgba(255, 255, 255, 0.78);
   --card-solid: #ffffff;
   --card-2: rgba(247, 249, 254, 0.9);
@@ -111,6 +116,11 @@
   --video-ph: linear-gradient(150deg, #e3f7eb 0%, #ddf2fb 55%, #eef0fb 100%);
   --chart-grid: rgba(24, 34, 62, 0.1);
   --hero-grad: radial-gradient(120% 140% at 0% 0%, rgba(37, 99, 235, 0.12), transparent 55%), radial-gradient(120% 140% at 100% 100%, rgba(14, 154, 184, 0.1), transparent 55%), linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(240, 244, 252, 0.97));
+
+  /* Aurora chart colors */
+  --chart-grad-1: #3b82f6;
+  --chart-grad-2: #06b6d4;
+  --chart-area: rgba(77, 141, 255, 0.30);
 }
 
 /* ============================================================
@@ -134,7 +144,7 @@ body {
   overflow-x: hidden;
 }
 
-/* Ambient mesh orbs — fixed, GPU-safe */
+/* Ambient aurora glows — fixed, GPU-safe */
 body::before, body::after {
   content: "";
   position: fixed;
@@ -144,14 +154,15 @@ body::before, body::after {
 }
 body::before {
   background:
-    radial-gradient(900px 560px at 82% -8%, rgba(34, 184, 230, 0.1), transparent 60%),
-    radial-gradient(760px 520px at -6% 24%, rgba(46, 224, 94, 0.08), transparent 60%),
-    radial-gradient(640px 480px at 108% 78%, rgba(34, 184, 230, 0.06), transparent 62%);
+    radial-gradient(1000px 640px at 84% 26%, rgba(77, 166, 255, 0.13), transparent 62%),
+    radial-gradient(860px 560px at 6% 30%, rgba(37, 99, 235, 0.09), transparent 60%),
+    radial-gradient(720px 520px at 112% 88%, rgba(34, 184, 230, 0.07), transparent 62%);
 }
 [data-theme="light"] body::before {
   background:
-    radial-gradient(900px 560px at 82% -8%, rgba(14, 154, 184, 0.1), transparent 60%),
-    radial-gradient(760px 520px at -6% 24%, rgba(37, 99, 235, 0.07), transparent 60%);
+    radial-gradient(1100px 720px at 84% 28%, rgba(77, 141, 255, 0.26), transparent 62%),
+    radial-gradient(920px 640px at 4% 96%, rgba(34, 184, 230, 0.15), transparent 60%),
+    radial-gradient(760px 540px at 96% 100%, rgba(96, 120, 255, 0.12), transparent 60%);
 }
 
 /* Film grain — fixed overlay only */
@@ -366,7 +377,7 @@ body::after {
   pointer-events: none;
 }
 .banner-plans { background-image: url("images/forest-gym.jpg"); }
-.banner-log { background-image: url("images/pullup-bar.jpg"); }
+.banner-log { background-image: url("images/pullup-bar.jpg"); margin-top: -536px; }
 .banner-goals { background-image: url("images/woman-calisthenics.jpg"); }
 
 .banner-head .page-eyebrow { background: rgba(4, 8, 16, 0.5); border-color: rgba(255, 255, 255, 0.14); color: #7deba4; }
@@ -557,11 +568,27 @@ body::after {
 [data-theme="light"] .chip.gradient { color: #fff; }
 
 /* ============================================================
-   Dashboard — Hero (3D tilt)
+   Dashboard — Hero + model backdrop
    ============================================================ */
+
+/* ===== Model backdrop — full-width, scrolls with the page ===== */
+.page-bg {
+  width: 150%;
+  margin-left: -25%;
+  aspect-ratio: 1024 / 1536;
+  margin-top: 12px;
+  pointer-events: none;
+  background-position: top center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  filter: drop-shadow(0 24px 60px rgba(2, 8, 20, 0.35));
+}
+.dash-bg { background-image: url('images/bg-model.png'); }
+.log-bg { background-image: url('images/bg-woman.png'); }
 
 .dash-hero {
   position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -571,6 +598,7 @@ body::after {
   border: 1px solid var(--border);
   overflow: hidden;
   box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  margin-top: -536px;
   margin-bottom: 26px;
 }
 .dash-hero::before {
@@ -727,6 +755,12 @@ body::after {
 .chart-area { fill: url(#areaGrad); }
 .chart-line { fill: none; stroke: url(#lineGrad); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 .chart-dot { fill: var(--card-solid); stroke: var(--accent); stroke-width: 2.5; }
+
+/* Aurora chart gradients — theme-aware (override SVG stop attributes) */
+#barGrad stop:first-child, #lineGrad stop:first-child { stop-color: var(--chart-grad-1); }
+#barGrad stop:last-child, #lineGrad stop:last-child { stop-color: var(--chart-grad-2); }
+#areaGrad stop:first-child { stop-color: var(--chart-area); }
+#areaGrad stop:last-child { stop-color: transparent; }
 
 .chart-empty {
   display: flex;
@@ -1522,7 +1556,91 @@ select.text-input option { background: var(--card-solid); color: var(--text); }
   .card { padding: 18px; }
 }
 
-/* Reduced motion */
+/* ============================================================
+   Dark Mode — White Cards (โทนการ์ดเดียวกับ Light Mode)
+   การ์ด/แผงทั้งหมดใน dark กลายเป็นขาวเหมือน light (พื้นหลัง เมนู,
+   topbar, แบนเนอร์ภาพถ่ายยังเป็น Dark Navy) — re-define variables
+   แบบ scoped บนพื้นผิวการ์ด ข้อความ/ชิป/input ด้านในเข้มตามอัตโนมัติ
+   ============================================================ */
+
+[data-theme="dark"] .card,
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] .dash-hero,
+[data-theme="dark"] .plan-pick-card,
+[data-theme="dark"] .exercise-card,
+[data-theme="dark"] .goal-card,
+[data-theme="dark"] .modal {
+  /* Surfaces — ขาวโทนเดียวกับ light (โปร่งใสขึ้นอีก 17%: 0.77 → 0.60) */
+  --card: rgba(255, 255, 255, 0.60);
+  --card-solid: #ffffff;
+  --card-2: rgba(247, 249, 254, 0.95);
+  --glass: rgba(255, 255, 255, 0.75);
+  --glass-strong: rgba(255, 255, 255, 0.92);
+
+  /* Lines */
+  --border: rgba(24, 34, 62, 0.1);
+  --border-strong: rgba(24, 34, 62, 0.2);
+  --hairline: rgba(24, 34, 62, 0.08);
+
+  /* Text — เข้ม */
+  --text: #141b2d;
+  --text-dim: #54607a;
+  --text-faint: #8e99b2;
+
+  /* Brand — บลู light */
+  --accent: #2563eb;
+  --accent-2: #0e9ab8;
+  --accent-glow: rgba(37, 99, 235, 0.28);
+  --gradient: linear-gradient(135deg, #2563eb 0%, #0e9ab8 100%);
+  --gradient-soft: linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(14, 154, 184, 0.12) 100%);
+
+  /* Helpers */
+  --chip-bg: rgba(24, 34, 62, 0.06);
+  --hover-bg: rgba(24, 34, 62, 0.05);
+  --track-bg: rgba(24, 34, 62, 0.1);
+  --chart-grid: rgba(24, 34, 62, 0.1);
+  --shadow-sm: 0 10px 28px rgba(6, 12, 26, 0.45);
+  --shadow: 0 24px 60px rgba(6, 12, 26, 0.6);
+
+  /* Hero gradient แบบ light (hero/plan detail เป็นการ์ดขาว) */
+  --hero-grad: radial-gradient(120% 140% at 0% 0%, rgba(37, 99, 235, 0.12), transparent 55%), radial-gradient(120% 140% at 100% 100%, rgba(14, 154, 184, 0.1), transparent 55%), linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(240, 244, 252, 0.97));
+
+  /* Aurora chart — ตามโทน light */
+  --chart-grad-1: #3b82f6;
+  --chart-grad-2: #06b6d4;
+  --chart-area: rgba(77, 141, 255, 0.3);
+
+  /* ข้อความตรงบนพื้นผิว (element ที่ไม่มี color เองจะ inherit ผ่านตรงนี้
+     — background ของแต่ละการ์ดใช้ rule เดิมซึ่ง var ถูก re-define ไปแล้ว) */
+  color: var(--text);
+}
+
+/* ปุ่มบนการ์ดขาว → ขาวเหมือน light */
+[data-theme="dark"] .card .btn-primary,
+[data-theme="dark"] .stat-card .btn-primary,
+[data-theme="dark"] .dash-hero .btn-primary,
+[data-theme="dark"] .plan-pick-card .btn-primary,
+[data-theme="dark"] .exercise-card .btn-primary,
+[data-theme="dark"] .goal-card .btn-primary,
+[data-theme="dark"] .modal .btn-primary,
+[data-theme="dark"] .card .btn-small.success,
+[data-theme="dark"] .card .chip.gradient,
+[data-theme="dark"] .plan-pick-card .chip.gradient,
+[data-theme="dark"] .card .filter-chip.active { color: #ffffff; }
+
+/* ปุ่มวิดีโอเล็กบนการ์ดท่าออกกำลังกาย */
+[data-theme="dark"] .exercise-card .ex-video-btn { background: rgba(255, 255, 255, 0.85); color: var(--text); border-color: var(--border); }
+
+/* วอลุ่มเวลาบนการ์ดขาว → บลูเข้มขึ้นเพื่อความคมชัด */
+[data-theme="dark"] .card .w-volume.time { color: #0e9ab8; }
+
+/* การ์ดสถิติใบแรก (gradient tint) */
+[data-theme="dark"] .stat-grid .stat-card:first-child { border-color: rgba(37, 99, 235, 0.25); }
+
+/* ============================================================
+   Reduced motion
+   ============================================================ */
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
