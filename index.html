@@ -50,10 +50,11 @@
       <div class="topbar-brand">
         <img class="brand-logo" src="images/logo-cut.webp" alt="CaliTrack" decoding="async" />
       </div>
-      <div class="sync-status" id="sync-status" data-state="local" title="สถานะการซิงก์ Supabase">
+      <button class="sync-status" id="sync-status" type="button" data-state="local" aria-expanded="false" aria-describedby="sync-tip" title="สถานะการซิงก์ Supabase">
         <span class="sync-dot"></span>
         <span class="sync-text" id="sync-text">—</span>
-      </div>
+        <span class="sync-tip" id="sync-tip" role="tooltip" hidden></span>
+      </button>
       <button class="user-chip" id="btn-account" aria-label="บัญชีผู้ใช้">
         <span class="user-avatar" id="user-avatar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>

@@ -206,21 +206,51 @@ const sFromDb = (r) => ({ activePlanId: r.active_plan_id || null, planDone: r.pl
 
 function sbStatus(kind, msg) {
   const labels = {
-    connecting: 'กำลังเชื่อมต่อ Supabase…',
-    online: 'ซิงก์กับ Supabase แล้ว',
-    local: 'โหมดเครื่อง (ออฟไลน์)',
-    guest: 'โหมดผู้เยี่ยมชม — ข้อมูลในเครื่องนี้',
-    error: msg || 'ซิงก์ล้มเหลว',
+    connecting: 'กำลังเชื่อมต่อ…',
+    online: 'Supabase',
+    local: 'โหมดเครื่อง',
+    guest: 'โหมดผู้เยี่ยมชม',
+    error: 'เชื่อมต่อล้มเหลว',
+  };
+  // รายละเอียดเต็ม — โชว์ใน tooltip เมื่อ hover (กันป้ายยาวเกิน)
+  const details = {
+    connecting: 'กำลังเชื่อมต่อกับ Supabase…',
+    online: 'เชื่อมต่อกับ Supabase แล้ว — ข้อมูลซิงก์อัตโนมัติ',
+    local: 'โหมดเครื่อง (ออฟไลน์) — ยังไม่ได้ตั้งค่า Supabase ข้อมูลอยู่ในเครื่องนี้',
+    guest: 'โหมดผู้เยี่ยมชม — ข้อมูลอยู่ในเครื่องนี้เท่านั้น ล็อกอินเพื่อซิงก์ข้ามเครื่อง',
+    error: msg || 'เชื่อมต่อล้มเหลว — ตรวจสอบการเชื่อมต่อแล้วลองใหม่',
   };
   const prev = document.querySelector('.sync-status')?.dataset.state || '';
   document.querySelectorAll('.sync-status').forEach((chip) => {
     chip.dataset.state = kind;
     const text = chip.querySelector('.sync-text');
     if (text) text.textContent = labels[kind] || '';
+    const tip = chip.querySelector('.sync-tip');
+    if (tip) {
+      tip.textContent = details[kind] || '';
+      tip.hidden = false;
+    }
+    chip.title = details[kind] || chip.title;
   });
   if (kind === 'online') toast('เชื่อมต่อ Supabase แล้ว ☁️', '✅');
   if (kind === 'local' && prev !== 'local') toast('ยังไม่ได้ตั้งค่า Supabase — ใช้โหมดท้องถิ่น', '⚠️');
   if (kind === 'error' && prev !== 'error') toast(msg || 'ไม่สามารถซิงก์ได้', '⚠️');
+}
+
+/* ปุ่มซิงก์ — แตะ/คลิกเพื่อเปิด-ปิดรายละเอียดเต็ม (รองรับมือถือที่ไม่มี hover) */
+const syncChipBtn = document.getElementById('sync-status');
+if (syncChipBtn) {
+  const closeSyncTip = () => {
+    syncChipBtn.classList.remove('open');
+    syncChipBtn.setAttribute('aria-expanded', 'false');
+  };
+  syncChipBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = syncChipBtn.classList.toggle('open');
+    syncChipBtn.setAttribute('aria-expanded', String(open));
+  });
+  document.addEventListener('click', closeSyncTip);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSyncTip(); });
 }
 
 // error 401 RLS (สิทธิ์) vs เน็ตหลุด/เซิร์ฟเวอร์ล่ม — แยกกันเพราะวิธีแก้คนละแบบ

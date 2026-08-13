@@ -169,10 +169,10 @@ body::after {
   z-index: 110;
 }
 
-.topbar-brand { display: flex; align-items: center; min-width: 0; }
+.topbar-brand { display: flex; align-items: center; min-width: 0; flex-shrink: 0; }
 
 .brand-logo {
-  height: 37.4px;
+  height: 34.8px; /* 37.4px → −7% ให้ขอบบน/ล่างระนาบเดียวกับป้ายสถานะ */
   width: auto;
   display: block;
   object-fit: contain;
@@ -181,18 +181,22 @@ body::after {
 
 /* Sync status — inline ใน topbar */
 .sync-status {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 11px;
+  height: 34px;
+  padding: 0 12px;
   border-radius: 999px;
   background: var(--glass-strong);
   border: 1px solid var(--border);
   font-size: 11px;
   font-weight: 500;
+  font-family: inherit;
   color: var(--text-dim);
   white-space: nowrap;
-  flex-shrink: 0;
+  min-width: 0;
+  cursor: pointer;
 }
 .sync-dot {
   width: 8px; height: 8px;
@@ -203,6 +207,44 @@ body::after {
   .sync-status[data-state="online"] .sync-dot { background: var(--success); box-shadow: 0 0 8px var(--success); }
   .sync-status[data-state="local"] .sync-dot { background: var(--text-faint); }
   .sync-status[data-state="error"] .sync-dot { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+
+/* ข้อความสถานะสั้นลงแล้ว — ถ้าจอแคบให้ย่อด้วย … แทนการทับกัน */
+.sync-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* Tooltip — แสดงสถานะแบบเต็มเมื่อ hover ป้ายซิงก์ */
+.sync-tip {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 200;
+  max-width: min(280px, calc(100vw - 32px));
+  padding: 10px 13px;
+  border-radius: 12px;
+  background: var(--card-solid);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-sm);
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.55;
+  color: var(--text-dim);
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.25s var(--ease-out), transform 0.25s var(--ease-out);
+}
+.sync-status:hover .sync-tip,
+.sync-status:focus-within .sync-tip,
+.sync-status.open .sync-tip {
+  opacity: 1;
+  transform: translateY(0);
+}
 
 @keyframes syncPulse {
   0%, 100% { opacity: 1; }
@@ -1467,7 +1509,8 @@ select.text-input option { background: var(--card-solid); color: var(--text); }
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 4px 10px 4px 5px;
+  height: 34px;
+  padding: 0 10px 0 5px;
   border-radius: 999px;
   background: var(--glass-strong);
   border: 1px solid var(--border);
@@ -1477,6 +1520,7 @@ select.text-input option { background: var(--card-solid); color: var(--text); }
   font-size: 11px;
   font-weight: 600;
   max-width: 132px;
+  min-width: 0;
   transition: border-color 0.25s, transform 0.25s, background 0.25s;
 }
 
