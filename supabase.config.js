@@ -1,5 +1,5 @@
 /* ============================================================
-   CaliTrack — Supabase configuration
+   CalisTrack — Supabase configuration
    ============================================================
    1) รันสคริปต์ supabase/schema.sql ใน SQL Editor ของโปรเจกต์
    2) ไปที่ Project Settings -> API แล้วคัดลอกค่า 2 ตัวนี้:

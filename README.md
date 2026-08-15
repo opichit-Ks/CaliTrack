@@ -1,4 +1,4 @@
-# CaliTrack — Calisthenics Workout Tracker
+# CalisTrack — Calisthenics Workout Tracker
 
 WebApp ช่วยเหลือการออกกำลังกายแบบ **Calisthenics** — รวมคลิปแนะนำท่าออกกำลังกาย ระบบจดบันทึกการฝึกตามแผน สถิติพัฒนาการ และเป้าหมายส่วนตัว
 

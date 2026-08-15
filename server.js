@@ -27,4 +27,4 @@ http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': types[path.extname(file).toLowerCase()] || 'application/octet-stream' });
     res.end(data);
   });
-}).listen(8123, () => console.log('CaliTrack serving on http://localhost:8123'));
+}).listen(8123, () => console.log('CalisTrack serving on http://localhost:8123'));

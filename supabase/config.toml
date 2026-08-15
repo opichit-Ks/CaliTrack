@@ -1,5 +1,5 @@
 # ============================================================
-# CaliTrack — Supabase project config
+# CalisTrack — Supabase project config
 # ใช้กับ GitHub Integration: Supabase อ่าน schema จาก supabase/migrations/
 # แล้ว apply ให้อัตโนมัติ (แนวทาง B — repo เป็นต้นทางของโครงสร้างตาราง)
 # ============================================================

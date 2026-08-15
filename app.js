@@ -1,5 +1,5 @@
 /* ============================================================
-   CaliTrack — App logic
+   CalisTrack — App logic
    Calisthenics workout logger + goal tracker (localStorage)
    ============================================================ */
 
@@ -139,22 +139,29 @@ const planById = (id) => PLANS.find((p) => p.id === id) || null;
 
 /* ---------------- Storage: Supabase (หลัก) + localStorage (cache/offline) ---------------- */
 
-const STORE_KEY = 'calitrack.v1';
-const GUEST_KEY = 'calitrack.v1.guest';
+const STORE_KEY = 'calistrack.v1';
+const GUEST_KEY = 'calistrack.v1.guest';
 
-// 🔐 key ข้อมูลตามสถานะ: ผู้เยี่ยมชม = calitrack.v1.guest,
-//    ล็อกอินด้วย Google = calitrack.v1.<uid ของ Supabase> — ข้อมูลแยกคนละที่
+// 🔐 key ข้อมูลตามสถานะ: ผู้เยี่ยมชม = calistrack.v1.guest,
+//    ล็อกอินด้วย Google = calistrack.v1.<uid ของ Supabase> — ข้อมูลแยกคนละที่
 let authUser = null; // เฉพาะข้อมูลสำหรับแสดงผล (ชื่อ/อีเมล/รูป) — ไม่เคย log
 const isGuest = () => !authUser;
 const storageKey = () => (authUser ? `${STORE_KEY}.${authUser.id}` : GUEST_KEY);
 
-// โยกข้อมูลเวอร์ชันเก่า (calitrack.v1) ไปยัง key ของ guest ครั้งแรกที่รัน
+// โยกข้อมูลจาก key ของแบรนด์เดิม (CaliTrack) ไปยัง key ใหม่ครั้งแรกที่รัน
+// — กันข้อมูลผู้ใช้เดิมไม่หายหลังเปลี่ยนชื่อแบรนด์
 function migrateLegacyKey() {
+  const legacy = [
+    ['calitrack.v1', STORE_KEY],
+    ['calitrack.v1.guest', GUEST_KEY],
+  ];
   try {
-    if (!localStorage.getItem(GUEST_KEY) && localStorage.getItem(STORE_KEY)) {
-      localStorage.setItem(GUEST_KEY, localStorage.getItem(STORE_KEY));
-      localStorage.removeItem(STORE_KEY);
-    }
+    legacy.forEach(([oldKey, newKey]) => {
+      if (!localStorage.getItem(newKey) && localStorage.getItem(oldKey)) {
+        localStorage.setItem(newKey, localStorage.getItem(oldKey));
+        localStorage.removeItem(oldKey);
+      }
+    });
   } catch { /* ignore */ }
 }
 
@@ -434,7 +441,7 @@ async function sbPushAll() {
 
 function sbSubscribe() {
   if (!sb) return;
-  sb.channel('calitrack-changes')
+  sb.channel('calistrack-changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'workouts' }, (payload) => {
       if (payload.eventType === 'DELETE') {
         const id = payload.old && payload.old.id;
@@ -1389,7 +1396,7 @@ function exportData() {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `calitrack-backup-${todayStr()}.json`;
+  a.download = `calistrack-backup-${todayStr()}.json`;
   a.click();
   URL.revokeObjectURL(a.href);
   toast('ส่งออกข้อมูลสำเร็จ 📦', '💾');

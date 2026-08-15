@@ -1,5 +1,5 @@
 -- ============================================================
--- CaliTrack — Initial migration
+-- CalisTrack — Initial migration
 -- ============================================================
 -- ไฟล์นี้ถูก GitHub Integration ของ Supabase นำไป apply อัตโนมัติ
 -- ทุกคำสั่งเป็น idempotent (รันซ้ำได้ ไม่ error) — ปลอดภัยแม้

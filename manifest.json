@@ -1,6 +1,6 @@
 {
-  "name": "CaliTrack — บันทึกการฝึกแคลิสเทนิกส์",
-  "short_name": "CaliTrack",
+  "name": "CalisTrack — บันทึกการฝึกแคลิสเทนิกส์",
+  "short_name": "CalisTrack",
   "description": "เว็บแอปบันทึกการออกกำลังกายแบบ Calisthenics ตั้งเป้าหมาย และติดตามความก้าวหน้า",
   "start_url": "./",
   "scope": "./",
